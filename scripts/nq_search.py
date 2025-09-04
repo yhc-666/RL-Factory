@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Preprocess the nq dataset to parquet format
+This script will:
+  - Download the NQ dataset from HuggingFace (RUC-NLPIR/FlashRAG_datasets)
+  - Process it into parquet format with proper prompt templates
+  - Save train.parquet and test.parquet to ./data/nq_search/
 """
 
 
@@ -31,11 +34,11 @@ def make_prefix(dp, template_type):
     if template_type == 'base':
         # This works for any base model
         prefix = f"""Answer the given question. \
-You must conduct reasoning inside <think> and </think> first every time you get new information. \
-After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
-You can search as many times as your want. \
-If you find no further external knowledge needed, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}
-"""
+        You must conduct reasoning inside <think> and </think> first every time you get new information. \
+        After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
+        You can search as many times as your want. \
+        If you find no further external knowledge needed, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}\
+        """
     else:
         raise NotImplementedError
     return prefix
