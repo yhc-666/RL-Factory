@@ -363,38 +363,97 @@ class QwenManager(ToolManager):
         return parsed_tools
     
     def get_prompt(self, input_data, tokenizer, mode='initial', add_generation_prompt=True):
+        """
+        生成带有工具调用格式的prompt模板
+        
+        该方法根据不同的模式(mode)生成格式化的prompt，支持初始对话、工具调用和助手响应三种场景。
+        主要用于在强化学习训练过程中，为模型生成合适的输入prompt。
+        
+        Args:
+            input_data: 输入数据，根据mode不同可能是：
+                - mode='initial': 完整的对话历史列表 (List[Dict])
+                - mode='tool_call'/'assistant_response': 字符串内容或对话列表
+            tokenizer: Hugging Face tokenizer对象，用于应用聊天模板
+            mode: 生成prompt的模式，可选值：
+                - 'initial': 初始对话模式，用于开始一轮新的对话
+                - 'tool_call': 工具调用模式，用于处理工具返回的结果
+                - 'assistant_response': 助手响应模式，用于生成助手的回复
+            add_generation_prompt: 是否在prompt末尾添加生成提示符（默认True）
+        
+        Returns:
+            str: 格式化后的prompt字符串，包含了适当的角色标记和工具信息
+        
+        工作流程：
+        1. 首先创建一个基础对话模板(base_chat)，包含SYSTEM和USER角色的占位内容
+        2. 使用tokenizer生成基础prompt，包含工具函数定义(self.functions)
+        3. 根据不同mode处理：
+           - initial: 直接应用完整对话历史
+           - tool_call/assistant_response: 创建增量prompt，并移除基础部分避免重复
+        4. 支持enable_thinking配置，用于启用模型的思考链功能
+        """
+        # 验证模式参数的有效性
         assert mode in ['initial', 'tool_call', 'assistant_response'], 'Invalid mode: {}'.format(mode)
+        
+        # 创建基础对话模板，用作后续处理的参照
+        # 这个base_chat仅用于生成基础prompt结构，实际内容会被替换
         base_chat = [
             {'role': SYSTEM, 'content': 'base'},
             {'role': USER, 'content': 'base'},
         ]
+        
+        # 生成基础prompt，包含工具函数定义但不添加生成提示符
+        # 这个基础prompt主要用于tool_call和assistant_response模式中的差分计算
         base_prompt = tokenizer.apply_chat_template(
             conversation=base_chat,
-            tools=self.functions,
-            tokenize=False, add_generation_prompt=False
+            tools=self.functions,  # self.functions包含所有可用工具的定义
+            tokenize=False, 
+            add_generation_prompt=False
         )
 
         if mode == 'initial':
+            # 初始模式：处理完整的对话历史
+            # input_data应该是一个包含角色和内容的对话列表
             chat = input_data
+            
+            # 应用聊天模板，生成包含工具定义的完整prompt
             prompt_with_chat_template = tokenizer.apply_chat_template(
-                conversation=chat, tokenize=False, tools=self.functions, 
-                add_generation_prompt=add_generation_prompt, enable_thinking=self.verl_config.enable_thinking
+                conversation=chat, 
+                tokenize=False, 
+                tools=self.functions,  # 注入工具函数定义
+                add_generation_prompt=add_generation_prompt,  # 控制是否添加生成提示
+                enable_thinking=self.verl_config.enable_thinking  # 启用思考链功能（如果配置了）
             )
+            
         elif mode in ['tool_call', 'assistant_response']:
-            # NOTE: the assistant response might not be used
+            # 工具调用或助手响应模式：处理增量消息
+            # NOTE: assistant_response模式在某些场景下可能不被使用
+            
+            # 根据模式确定消息角色
             role = 'tool' if mode == 'tool_call' else ASSISTANT
+            
+            # 处理不同类型的输入数据
             if type(input_data) == str:
+                # 如果是字符串，创建单个消息字典
                 chat = {'role': role, 'content': input_data}
             elif type(input_data) == list:
+                # 如果已经是列表格式，直接使用
                 chat = input_data
             else:
                 raise ValueError('Unexpected type of input_data {} ({})'.format(type(input_data), input_data))
             
+            # 生成包含基础对话和新消息的完整prompt
             temp_prompt_with_chat_template = tokenizer.apply_chat_template(
-                conversation=base_chat + chat, tools=self.functions, 
-                tokenize=False, add_generation_prompt=add_generation_prompt, enable_thinking=self.verl_config.enable_thinking
+                conversation=base_chat + chat,  # 将新消息追加到基础对话后
+                tools=self.functions, 
+                tokenize=False, 
+                add_generation_prompt=add_generation_prompt,
+                enable_thinking=self.verl_config.enable_thinking
             )
+            
+            # 移除基础prompt部分，只保留增量内容
+            # 这样可以避免重复的系统提示和工具定义
             prompt_with_chat_template = temp_prompt_with_chat_template.replace(base_prompt, '')
+            
         else:
             raise ValueError('Invalid mode: {}'.format(mode))
         
