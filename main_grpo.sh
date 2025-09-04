@@ -7,13 +7,12 @@ set -e -x
 
 # ==================== 环境变量配置 ====================
 # 基础模型路径：需要微调的语言模型（如 Qwen3-4B）
-export MODEL_PATH=/your/path/to/huggingface.co/Qwen/Qwen3-4B
-
+export MODEL_PATH=/mnt/dolphinfs/hdd_pool/docker/user/hadoop-mtsearch-assistant/ai-search/deepsearch_files/LLMbasemodels/huggingface.co/Qwen/Qwen3-8B
 # 奖励模型路径：用于评估生成质量的模型（如 QwQ-32B）
 export REWARD_MODEL_PATH=/your/path/to/huggingface.co/Qwen/QwQ-32B
 
 # 结果保存路径：训练过程中的checkpoints和日志
-export RESULT_DIR=/your/path/to/results/rl_factory/your_result_dir
+export RESULT_DIR=/mnt/dolphinfs/hdd_pool/docker/user/hadoop-mtsearch-assistant/ai-search/yanghaocheng04/RL-Factory/results
 
 # ==================== 启动 GRPO 训练 ====================
 python3 -m verl.trainer.main_ppo --config-name=rl_factory_ppo_trainer \
