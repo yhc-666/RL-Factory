@@ -247,10 +247,10 @@ trainer:
     kill: none
 
   # Project name for experiment tracking (e.g., wandb)
-  project_name: verl_examples
+  project_name: rlfactory_searchr1
 
   # Experiment name for run identification in tracking tools
-  experiment_name: gsm8k
+  experiment_name: searchr1
 
   # Logging backends to use: "console", "wandb", etc.
   logger: [ 'console', 'wandb' ]
